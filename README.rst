@@ -5,7 +5,7 @@ Please visit http://openswath.org/en/latest/docs/docker.html for further informa
 
 Software version information
 ----------------------------
-- grosenberger/openswath:0.1.0
+- openswath/openswath:0.1.0
 
 +-------------------+-----------+-----------+ 
 | Software          | Version   | Git       | 
