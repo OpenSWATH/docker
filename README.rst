@@ -1,0 +1,20 @@
+OpenSWATH Workflow Dockerfile
+=============================
+
+Please visit http://openswath.org/en/latest/docs/docker.html for further information.
+
+Software version information
+----------------------------
+- grosenberger/openswath:0.1.0
+
++-------------------+-----------+-----------+ 
+| Software          | Version   | Git       | 
++===================+===========+===========+ 
+| OpenMS            | 2.4.0a1   | 4d645a6   | 
++-------------------+-----------+-----------+ 
+| PyProphet         | 2.0.0dev1 | a401278   |
++-------------------+-----------+-----------+ 
+| Percolator        | 3.0.2     | 61e10b0   | 
++-------------------+-----------+-----------+ 
+| msproteomicstools | 0.8.0     | a107432   | 
++-------------------+-----------+-----------+ 
