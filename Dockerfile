@@ -65,4 +65,13 @@ RUN git clone https://github.com/msproteomicstools/msproteomicstools.git
 WORKDIR msproteomicstools
 RUN python setup.py install --with_cython
 
+# build mapDIA
+RUN apt-get install -y wget
+WORKDIR /code
+RUN wget https://sourceforge.net/projects/mapdia/files/mapDIA_v3.1.0.tar.gz
+RUN tar xvf mapDIA_v3.1.0.tar.gz
+WORKDIR mapDIA
+RUN make
+ENV PATH=$PATH:/code/mapDIA/
+
 WORKDIR /
