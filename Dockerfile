@@ -1,5 +1,5 @@
-# docker build -t openswath/openswath:0.1.0 .
-# docker push openswath/openswath:0.1.0
+# docker build --no-cache -t openswath/openswath:0.1.1 .
+# docker push openswath/openswath:0.1.1
 
 FROM ubuntu:16.04
 
@@ -33,7 +33,7 @@ RUN mkdir percolator_build
 WORKDIR /code/percolator_build
 
 RUN cmake -DCMAKE_PREFIX_PATH="/usr/;/usr/local" ../percolator
-RUN make -j4 && make install
+RUN make -j2 && make install
 
 # build OpenMS
 WORKDIR /code
@@ -43,7 +43,7 @@ RUN mkdir openms_build
 WORKDIR /code/openms_build
 
 RUN cmake -DOPENMS_CONTRIB_LIBS="/code/contrib_build/" -DCMAKE_PREFIX_PATH="/usr/;/usr/local" -DBOOST_USE_STATIC=OFF ../OpenMS
-RUN make -j4
+RUN make -j2
 ENV PATH=$PATH:/code/openms_build/bin/
 
 # build PyProphet
