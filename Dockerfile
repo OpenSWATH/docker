@@ -1,5 +1,5 @@
-# docker build --no-cache -t openswath/openswath:0.1.1 .
-# docker push openswath/openswath:0.1.1
+# docker build --no-cache -t openswath/openswath:0.1.2 .
+# docker push openswath/openswath:0.1.2
 
 FROM ubuntu:16.04
 
