@@ -101,8 +101,9 @@ RUN pip3 install snakemake
 # install ProteoWizard
 WORKDIR /code
 RUN wget -O pwiz.tar.bz2 http://teamcity.labkey.org/guestAuth/app/rest/builds/id:614661/artifacts/content/pwiz-bin-linux-x86_64-gcc48-release-3_0_18225_42cece9.tar.bz2
-RUN tar xvjf pwiz.tar.bz2
+RUN mkdir pwiz
+RUN tar xvjf pwiz.tar.bz2 -C pwiz
 RUN rm pwiz.tar.bz2
 ENV PATH=$PATH:/code/pwiz/
 
-WORKDIR /
+WORKDIR /data/
