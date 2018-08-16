@@ -11,10 +11,14 @@ WORKDIR /code
 
 # install base dependencies
 RUN apt-get -y update
-RUN apt-get install -y cmake g++ autoconf qt5-default libqt5svg5-dev patch libtool make git software-properties-common python3 wget default-jdk unzip
+RUN apt-get install -y cmake g++ autoconf qt5-default libqt5svg5-dev patch libtool make git software-properties-common python3 wget default-jdk unzip bzip2
 
 # install more dependencies
 RUN apt-get install -qq libsvm-dev libglpk-dev libzip-dev zlib1g-dev libxerces-c-dev libbz2-dev libboost-all-dev libsqlite3-dev
+
+# patch Python
+ENV LC_ALL=C.UTF-8
+ENV LANG=C.UTF-8
 
 # build SpectraST
 WORKDIR /code
@@ -54,6 +58,27 @@ WORKDIR /code
 RUN wget https://github.com/guoci/DIA-Umpire/releases/download/v2.1.3/v2.1.3.zip
 RUN unzip v2.1.3.zip -d DIAU
 RUN rm v2.1.3.zip
+RUN chmod -R 755 /code/DIAU/v2.1.3/DIA_Umpire_SE.jar /code/DIAU/v2.1.3/DIA_Umpire_Quant.jar
+ENV PATH=$PATH:/code/DIAU/v2.1.3
+WORKDIR /
+
+# install ProteoWizard
+WORKDIR /code
+RUN wget -O pwiz.tar.bz2 http://teamcity.labkey.org/guestAuth/app/rest/builds/id:614661/artifacts/content/pwiz-bin-linux-x86_64-gcc48-release-3_0_18225_42cece9.tar.bz2
+RUN mkdir pwiz
+RUN tar xvjf pwiz.tar.bz2 -C pwiz
+RUN rm pwiz.tar.bz2
+ENV PATH=$PATH:/code/pwiz/
+WORKDIR /
+
+# install Crux
+WORKDIR /code
+RUN wget -O crux.zip https://noble.gs.washington.edu/crux-downloads/daily/crux-3.2.ffff06b.Linux.x86_64.zip
+RUN mkdir crux
+RUN unzip crux.zip
+RUN rm crux.zip
+RUN chmod -R 755 /code/crux-3.2.Linux.x86_64/bin/crux
+ENV PATH=$PATH:/code/crux-3.2.Linux.x86_64/bin
 WORKDIR /
 
 #############
@@ -97,13 +122,5 @@ RUN pip3 install msproteomicstools
 # install Snakemake
 WORKDIR /code
 RUN pip3 install snakemake
-
-# install ProteoWizard
-WORKDIR /code
-RUN wget -O pwiz.tar.bz2 http://teamcity.labkey.org/guestAuth/app/rest/builds/id:614661/artifacts/content/pwiz-bin-linux-x86_64-gcc48-release-3_0_18225_42cece9.tar.bz2
-RUN mkdir pwiz
-RUN tar xvjf pwiz.tar.bz2 -C pwiz
-RUN rm pwiz.tar.bz2
-ENV PATH=$PATH:/code/pwiz/
 
 WORKDIR /data/
