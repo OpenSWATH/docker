@@ -107,4 +107,9 @@ RUN pip3 install msproteomicstools
 WORKDIR /code
 RUN pip3 install snakemake
 
+# install
+WORKDIR /code
+RUN apt-get install -y r-base
+RUN R -e "install.packages(c('RSQLite','plyr'), repos = 'http://cran.us.r-project.org')"
+
 WORKDIR /data/
