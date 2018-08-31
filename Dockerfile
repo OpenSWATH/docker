@@ -65,6 +65,11 @@ RUN rm pwiz.tar.bz2
 ENV PATH=$PATH:/code/pwiz/
 WORKDIR /
 
+# install R
+WORKDIR /code
+RUN apt-get install -y r-base
+RUN R -e "install.packages(c('RSQLite','plyr'), repos = 'http://cran.us.r-project.org')"
+
 #############
 # OpenSWATH #
 #############
@@ -84,7 +89,7 @@ RUN cmake -DBUILD_TYPE=KISSFFT ../contrib
 
 # build OpenMS
 WORKDIR /code
-RUN git clone https://github.com/OpenMS/OpenMS.git
+RUN git clone https://github.com/grosenberger/OpenMS.git --branch feature/osw_vartrans
 RUN mkdir openms_build
 
 WORKDIR /code/openms_build
@@ -106,10 +111,5 @@ RUN pip3 install msproteomicstools
 # install Snakemake
 WORKDIR /code
 RUN pip3 install snakemake
-
-# install
-WORKDIR /code
-RUN apt-get install -y r-base
-RUN R -e "install.packages(c('RSQLite','plyr'), repos = 'http://cran.us.r-project.org')"
 
 WORKDIR /data/
