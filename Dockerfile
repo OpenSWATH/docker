@@ -103,10 +103,22 @@ WORKDIR /code
 RUN apt-get install -y python3-pip python3-numpy python3-scipy cython
 RUN pip3 install git+https://github.com/PyProphet/pyprophet.git@master
 
-# build msproteomicstools
-RUN apt-get install -y libxml2 libxml2-dev libxslt1-dev 
+# build msproteomicstools dependencies
 WORKDIR /code
-RUN pip3 install msproteomicstools
+RUN apt-get install -y libxml2 libxml2-dev libxslt1-dev 
+RUN git clone https://github.com/carljv/Will_it_Python.git
+WORKDIR Will_it_Python/MLFH/CH2/lowess\ work/
+RUN python3 setup.py build
+RUN python3 setup.py install
+
+RUN pip3 install jsonschema
+
+# build msproteomicstools
+WORKDIR /code
+RUN git clone https://github.com/msproteomicstools/msproteomicstools.git
+WORKDIR msproteomicstools
+RUN python3 setup.py build --with_cython
+RUN python3 setup.py install
 
 # install Snakemake
 WORKDIR /code
