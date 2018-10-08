@@ -67,8 +67,15 @@ WORKDIR /
 
 # install R
 WORKDIR /code
+RUN apt-get update
 RUN apt-get install -y r-base
-RUN R -e "install.packages(c('RSQLite','plyr'), repos = 'http://cran.us.r-project.org')"
+RUN apt-get install -y libcurl4-openssl-dev libssl-dev
+
+RUN R -e "install.packages(c('RSQLite'), repos = 'http://cran.us.r-project.org')"
+RUN R -e "install.packages(c('plyr'), repos = 'http://cran.us.r-project.org')"
+RUN R -e "install.packages(c('devtools'), repos = 'http://cran.us.r-project.org')"
+
+RUN R -e "library(devtools); install_github('IFIproteomics/LFQbench')"
 
 #############
 # OpenSWATH #
@@ -123,5 +130,11 @@ RUN python3 setup.py install
 # install Snakemake
 WORKDIR /code
 RUN pip3 install snakemake
+
+WORKDIR /data/
+
+# install pyOpenMS
+WORKDIR /code
+RUN pip3 install pyopenms
 
 WORKDIR /data/
