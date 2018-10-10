@@ -67,14 +67,16 @@ WORKDIR /
 
 # install R
 WORKDIR /code
+RUN apt-get install apt-transport-https
+RUN printf "deb https://cloud.r-project.org/bin/linux/ubuntu xenial/" > /etc/apt/sources.list.d/backports.list
 RUN apt-get update
-RUN apt-get install -y r-base
-RUN apt-get install -y libcurl4-openssl-dev libssl-dev
+RUN apt-get install -y --allow-unauthenticated r-base r-base-dev libcurl4-openssl-dev libssl-dev
 
 RUN R -e "install.packages(c('RSQLite'), repos = 'http://cran.us.r-project.org')"
 RUN R -e "install.packages(c('plyr'), repos = 'http://cran.us.r-project.org')"
 RUN R -e "install.packages(c('devtools'), repos = 'http://cran.us.r-project.org')"
-
+RUN R -e "install.packages(c('spData'), repos = 'http://cran.us.r-project.org')"
+RUN R -e "install.packages(c('classInt'), repos = 'http://cran.us.r-project.org')"
 RUN R -e "library(devtools); install_github('IFIproteomics/LFQbench')"
 
 #############
@@ -107,8 +109,12 @@ ENV PATH=$PATH:/code/openms_build/bin/
 
 # build PyProphet
 WORKDIR /code
-RUN apt-get install -y python3-pip python3-numpy python3-scipy cython
-RUN pip3 install git+https://github.com/PyProphet/pyprophet.git@master
+RUN apt-get install -y python3-pip
+RUN pip3 install pip --upgrade
+RUN pip3 install numpy --upgrade
+RUN pip3 install scipy --upgrade
+RUN pip3 install cython --upgrade
+RUN pip3 install git+https://github.com/grosenberger/pyprophet.git@feature/classifiers
 
 # build msproteomicstools dependencies
 WORKDIR /code
