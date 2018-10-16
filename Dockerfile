@@ -1,14 +1,16 @@
 # docker build --no-cache -t openswath/develop:latest .
 # docker push openswath/develop
 
-FROM ubuntu:18.04
+FROM ubuntu:16.04
 
 WORKDIR /code
 
 # install base dependencies
-ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get -y update
-RUN apt-get install -y cmake g++ autoconf qt5-default libqt5svg5-dev patch libtool make git software-properties-common python3 wget default-jdk unzip bzip2 perl gnuplot xsltproc libgd-dev libpng-dev zlib1g-dev libsvm-dev libglpk-dev libzip-dev zlib1g-dev libxerces-c-dev libbz2-dev libboost-all-dev libsqlite3-dev libexpat1-dev libgsl-dev apt-transport-https r-base r-base-dev libcurl4-openssl-dev libssl-dev libxml2 libxml2-dev libxslt1-dev python3-pip subversion
+RUN apt-get install -y apt-transport-https
+RUN printf "deb https://cloud.r-project.org/bin/linux/ubuntu xenial/" > /etc/apt/sources.list.d/backports.list
+RUN apt-get -y update
+RUN apt-get install -y --allow-unauthenticated cmake g++ autoconf qt5-default libqt5svg5-dev patch libtool make git software-properties-common python3 wget default-jdk unzip bzip2 perl gnuplot xsltproc libgd-dev libpng12-dev zlib1g-dev libsvm-dev libglpk-dev libzip-dev zlib1g-dev libxerces-c-dev libbz2-dev libboost-all-dev libsqlite3-dev libexpat1-dev libgsl-dev apt-transport-https r-base r-base-dev libcurl4-openssl-dev libssl-dev libxml2 libxml2-dev libxslt1-dev python3-pip subversion
 
 #########################################
 # Computational proteomics dependencies #
@@ -91,3 +93,7 @@ RUN python3 setup.py build --with_cython && python3 setup.py install
 RUN R -e "install.packages(c('RSQLite','plyr','devtools','spData','classInt'), repos = 'http://cran.us.r-project.org'); library(devtools); install_github('IFIproteomics/LFQbench')"
 
 WORKDIR /data/
+
+# patch Python
+ENV LC_ALL=C.UTF-8
+ENV LANG=C.UTF-8
