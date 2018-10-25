@@ -63,11 +63,20 @@ RUN cmake -DOPENMS_CONTRIB_LIBS="/code/contrib_build/" -DCMAKE_PREFIX_PATH="/usr
 RUN make -j4
 ENV PATH=$PATH:/code/openms_build/bin/
 
+#####
+# R #
+#####
+
+# install R packages
+RUN R -e "install.packages(c('RSQLite','plyr','devtools','spData','classInt'), repos = 'http://cran.us.r-project.org'); library(devtools); install_github('IFIproteomics/LFQbench')"
+
+WORKDIR /data/
+
 ##########
 # Python #
 ##########
 
-# install PyProphet and dependencies 
+# install PyProphet and dependencies
 WORKDIR /code
 RUN pip3 install pip --upgrade
 RUN pip3 install numpy scipy cython jsonschema snakemake pyopenms --upgrade
@@ -84,15 +93,6 @@ WORKDIR /code
 RUN git clone https://github.com/msproteomicstools/msproteomicstools.git
 WORKDIR msproteomicstools
 RUN python3 setup.py build --with_cython && python3 setup.py install
-
-#####
-# R #
-#####
-
-# install R packages
-RUN R -e "install.packages(c('RSQLite','plyr','devtools','spData','classInt'), repos = 'http://cran.us.r-project.org'); library(devtools); install_github('IFIproteomics/LFQbench')"
-
-WORKDIR /data/
 
 # patch Python
 ENV LC_ALL=C.UTF-8
