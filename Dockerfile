@@ -70,8 +70,6 @@ ENV PATH=$PATH:/code/openms_build/bin/
 # install R packages
 RUN R -e "install.packages(c('RSQLite','plyr','devtools','spData','classInt'), repos = 'http://cran.us.r-project.org'); library(devtools); install_github('IFIproteomics/LFQbench')"
 
-WORKDIR /data/
-
 ##########
 # Python #
 ##########
@@ -97,3 +95,10 @@ RUN python3 setup.py build --with_cython && python3 setup.py install
 # patch Python
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
+
+RUN apt-get install -y uuid-runtime
+
+#################################
+# DO NOT CHANGE BELOW THIS LINE #
+#################################
+WORKDIR /data/
