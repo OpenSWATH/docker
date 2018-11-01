@@ -10,7 +10,7 @@ RUN apt-get -y update
 RUN apt-get install -y apt-transport-https
 RUN printf "deb https://cloud.r-project.org/bin/linux/ubuntu xenial/" > /etc/apt/sources.list.d/backports.list
 RUN apt-get -y update
-RUN apt-get install -y --allow-unauthenticated cmake g++ autoconf qt5-default libqt5svg5-dev patch libtool make git software-properties-common python3 wget default-jdk unzip bzip2 perl gnuplot xsltproc libgd-dev libpng12-dev zlib1g-dev libsvm-dev libglpk-dev libzip-dev zlib1g-dev libxerces-c-dev libbz2-dev libboost-all-dev libsqlite3-dev libexpat1-dev libgsl-dev apt-transport-https r-base r-base-dev libcurl4-openssl-dev libssl-dev libxml2 libxml2-dev libxslt1-dev python3-pip subversion
+RUN apt-get install -y --allow-unauthenticated cmake g++ autoconf qt5-default libqt5svg5-dev patch libtool make git software-properties-common python3 wget default-jdk unzip bzip2 perl gnuplot xsltproc libgd-dev libpng12-dev zlib1g-dev libsvm-dev libglpk-dev libzip-dev zlib1g-dev libxerces-c-dev libbz2-dev libboost-all-dev libsqlite3-dev libexpat1-dev libgsl-dev apt-transport-https r-base r-base-dev libcurl4-openssl-dev libssl-dev libxml2 libxml2-dev libxslt1-dev python3-pip subversion uuid-runtime
 
 #########################################
 # Computational proteomics dependencies #
@@ -31,7 +31,7 @@ WORKDIR /
 
 # install ProteoWizard
 WORKDIR /code
-RUN wget -O pwiz.tar.bz2 http://teamcity.labkey.org/guestAuth/app/rest/builds/id:641807/artifacts/content/pwiz-bin-linux-x86_64-gcc48-release-3_0_18282_8016b68.tar.bz2 && mkdir pwiz && tar xvjf pwiz.tar.bz2 -C pwiz && rm pwiz.tar.bz2
+RUN wget -O pwiz.tar.bz2 http://teamcity.labkey.org/guestAuth/app/rest/builds/id:651146/artifacts/content/pwiz-bin-linux-x86_64-gcc48-release-3_0_18305_044f041.tar.bz2 && mkdir pwiz && tar xvjf pwiz.tar.bz2 -C pwiz && rm pwiz.tar.bz2
 ENV PATH=$PATH:/code/pwiz/
 WORKDIR /
 
@@ -54,7 +54,7 @@ RUN cmake -DBUILD_TYPE=KISSFFT ../contrib
 
 # build OpenMS
 WORKDIR /code
-RUN git clone https://github.com/OpenMS/OpenMS.git --branch develop
+RUN git clone https://github.com/grosenberger/OpenMS.git --branch fix/sangle_nan
 RUN mkdir openms_build
 
 WORKDIR /code/openms_build
@@ -95,8 +95,6 @@ RUN python3 setup.py build --with_cython && python3 setup.py install
 # patch Python
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
-
-RUN apt-get install -y uuid-runtime
 
 #################################
 # DO NOT CHANGE BELOW THIS LINE #
