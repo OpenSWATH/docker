@@ -1,5 +1,5 @@
-# docker build --no-cache -t openswath/openswath:0.1.2 .
-# docker push openswath/openswath:0.1.2
+# docker build --no-cache -t openswath/openswath:0.2.0 .
+# docker push openswath/openswath:0.2.0
 
 FROM ubuntu:16.04
 
@@ -37,7 +37,7 @@ RUN make -j2 && make install
 
 # build OpenMS
 WORKDIR /code
-RUN git clone https://github.com/OpenMS/OpenMS.git
+RUN git clone https://github.com/OpenMS/OpenMS.git  --branch master
 RUN mkdir openms_build
 
 WORKDIR /code/openms_build
@@ -47,23 +47,26 @@ RUN make -j2
 ENV PATH=$PATH:/code/openms_build/bin/
 
 # build PyProphet
+RUN apt-get install -y python3 python3-pip
+
 WORKDIR /code
-RUN apt-get install -y python-pip python-numpy python-scipy cython
-RUN pip install git+https://github.com/PyProphet/pyprophet.git@master
+RUN pip3 install pip --upgrade
+RUN pip3 install numpy scipy cython --upgrade
+RUN pip3 install git+https://github.com/PyProphet/pyprophet.git@master
 
 # build msproteomicstools
 RUN apt-get install libxml2 libxml2-dev libxslt1-dev 
 
 WORKDIR /code
+RUN pip3 install plotly
 RUN git clone https://github.com/carljv/Will_it_Python.git
 WORKDIR Will_it_Python/MLFH/CH2/lowess\ work/
-RUN python setup.py build
-RUN python setup.py install
+RUN python3 setup.py build && python3 setup.py install
 
 WORKDIR /code
 RUN git clone https://github.com/msproteomicstools/msproteomicstools.git
 WORKDIR msproteomicstools
-RUN python setup.py install --with_cython
+RUN python3 setup.py build --with_cython && python3 setup.py install
 
 # build mapDIA
 RUN apt-get install -y wget
