@@ -77,4 +77,11 @@ WORKDIR mapDIA
 RUN make
 ENV PATH=$PATH:/code/mapDIA/
 
-WORKDIR /
+# patch Python
+ENV LC_ALL=C.UTF-8
+ENV LANG=C.UTF-8
+
+#################################
+# DO NOT CHANGE BELOW THIS LINE #
+#################################
+WORKDIR /data/
