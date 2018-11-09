@@ -16,12 +16,6 @@ RUN apt-get install -y --allow-unauthenticated cmake g++ autoconf qt5-default li
 # Computational proteomics dependencies #
 #########################################
 
-# install Crux
-WORKDIR /code
-RUN wget https://noble.gs.washington.edu/crux-downloads/crux-3.2/crux-3.2.Linux.x86_64.zip && unzip crux-3.2.Linux.x86_64.zip -d crux && rm crux-3.2.Linux.x86_64.zip
-ENV PATH=$PATH:/code/crux/crux-3.2.Linux.x86_64/bin
-WORKDIR /
-
 # install DIA-Umpire
 WORKDIR /code
 RUN wget https://github.com/guoci/DIA-Umpire/releases/download/v2.1.3/v2.1.3.zip && unzip v2.1.3.zip -d DIAU && rm v2.1.3.zip
@@ -77,7 +71,7 @@ RUN R -e "install.packages(c('RSQLite','plyr','devtools','spData','classInt'), r
 # install PyProphet and dependencies
 WORKDIR /code
 RUN pip3 install pip --upgrade
-RUN pip3 install numpy scipy cython jsonschema snakemake pyopenms --upgrade
+RUN pip3 install numpy scipy cython jsonschema snakemake pyopenms plotly --upgrade
 RUN pip3 install git+https://github.com/grosenberger/pyprophet.git@feature/classifiers
 
 # build msproteomicstools dependencies
