@@ -5,6 +5,22 @@ Please visit http://openswath.org/en/latest/docs/docker.html for further informa
 
 Software version information
 ----------------------------
+- openswath/openswath:0.2.1
+
++-------------------+-----------+-----------+ 
+| Software          | Version   | Git       | 
++===================+===========+===========+ 
+| OpenMS            | 2.4.0     | 73f8a5c   | 
++-------------------+-----------+-----------+ 
+| PyProphet         | 2.1.3     | f546ad1   |
++-------------------+-----------+-----------+ 
+| Percolator        | master    | aaab4d0   | 
++-------------------+-----------+-----------+ 
+| msproteomicstools | master    | a328b13   | 
++-------------------+-----------+-----------+ 
+| mapDIA            | 3.1.0     |           | 
++-------------------+-----------+-----------+ 
+
 - openswath/openswath:0.2.0
 
 +-------------------+-----------+-----------+ 

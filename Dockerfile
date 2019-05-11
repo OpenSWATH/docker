@@ -1,5 +1,6 @@
-# docker build --no-cache -t openswath/openswath:0.2.0 .
-# docker push openswath/openswath:0.2.0
+# docker build --no-cache -t openswath/openswath:0.2.1 -t openswath/openswath:latest .
+# docker push openswath/openswath:0.2.1
+# docker push openswath/openswath:latest
 
 FROM ubuntu:16.04
 
@@ -52,7 +53,7 @@ RUN apt-get install -y python3 python3-pip
 WORKDIR /code
 RUN pip3 install pip --upgrade
 RUN pip3 install numpy scipy cython --upgrade
-RUN pip3 install git+https://github.com/PyProphet/pyprophet.git@master
+RUN pip3 install pyprophet
 
 # build msproteomicstools
 RUN apt-get install libxml2 libxml2-dev libxslt1-dev 
