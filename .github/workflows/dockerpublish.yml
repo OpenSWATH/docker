@@ -9,27 +9,24 @@ permissions:
   packages: write
 
 env:
-  IMAGE_OWNER: openswath           # org/user on GitHub
-  IMAGE_NAME: openswath            # <-- custom image name (not the repo name)
+  IMAGE_OWNER: openswath
+  IMAGE_NAME: openswath
   REGISTRY: ghcr.io
 
 jobs:
   docker:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Compute tags
         id: meta
         run: |
           SHORT_SHA="${GITHUB_SHA::7}"
-          TAG_SHA="sha-${SHORT_SHA}"
-          TAG_RELEASE="${GITHUB_REF_NAME}"             # e.g. v0.3.0
-          echo "TAG_SHA=${TAG_SHA}" >> $GITHUB_ENV
-          echo "TAG_RELEASE=${TAG_RELEASE}" >> $GITHUB_ENV
-          # latest if release is from main
-          if [ "${{ github.event.release.target_commitish }}" = "main" ]; then
+          echo "TAG_SHA=sha-${SHORT_SHA}" >> $GITHUB_ENV
+          echo "TAG_RELEASE=${GITHUB_REF_NAME}" >> $GITHUB_ENV   # e.g. v0.3.0
+          # Set LATEST for non-prerelease releases
+          if [ "${{ github.event.release.prerelease }}" = "false" ]; then
             echo "TAG_LATEST=latest" >> $GITHUB_ENV
           fi
 
