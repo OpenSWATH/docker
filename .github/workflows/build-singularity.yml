@@ -27,6 +27,7 @@ jobs:
       REGISTRY: ghcr.io
       IMAGE_OWNER: openswath
       IMAGE_NAME: openswath
+
     steps:
       - uses: actions/checkout@v4
 
@@ -35,7 +36,7 @@ jobs:
         with:
           apptainer-version: '1.3.4'
 
-      - name: Work out source tag
+      - name: Work out source & output names
         id: tag
         run: |
           # Prefer repository_dispatch payload, then manual input, then 'latest'
@@ -50,14 +51,11 @@ jobs:
           echo "SRC_TAG=$SRC_TAG" >> $GITHUB_ENV
           echo "SIF=openswath-${SAFE_TAG}.sif" >> $GITHUB_ENV
 
-      - name: Build SIF from GHCR (public image)
-        env:
-          APPTAINER_REMOTE: cloud.sylabs.io
-          APPTAINER_TOKEN: ${{ secrets.SYLABS_TOKEN }}  # required for --remote
+      - name: Pull SIF from GHCR (public image)
         run: |
           SRC="docker://${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:${{ env.SRC_TAG }}"
-          echo "Building ${{ env.SIF }} from $SRC"
-          apptainer build --remote "${{ env.SIF }}" "$SRC"
+          echo "Pulling ${{ env.SIF }} from $SRC"
+          apptainer pull --force "${{ env.SIF }}" "$SRC"
           ls -lh "${{ env.SIF }}"
 
       - name: Upload SIF as workflow artifact
@@ -68,7 +66,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Upload SIF to GitHub Release (optional for manual runs)
+      - name: Upload SIF to GitHub Release (manual runs only if tag provided)
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag != '' }}
         uses: softprops/action-gh-release@v2
         with:
