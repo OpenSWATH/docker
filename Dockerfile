@@ -63,6 +63,18 @@ FROM ghcr.io/openms/openms-executables:${OPENMS_TAG} AS runtime
 ENV DEBIAN_FRONTEND=noninteractive
 ENV INSTALL_DIR=/opt/OpenMS
 
+# re-declare any ARGs you need in THIS stage
+ARG PYPROPHET_VERSION
+ARG EASYPQP_VERSION
+ARG ARYCAL_URL
+ARG ARYCAL_SHA256
+ARG SAGE_URL
+ARG SAGE_SHA256
+
+# (optional) make them visible at runtime inside the container
+ENV PYPROPHET_VERSION="${PYPROPHET_VERSION}" \
+    EASYPQP_VERSION="${EASYPQP_VERSION}"
+
 # System Python + minimal build bits for Python wheels + fetch helpers
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates \
