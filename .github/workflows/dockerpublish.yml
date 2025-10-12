@@ -5,17 +5,27 @@ on:
     types: [published]
 
 permissions:
-  contents: read
+  contents: write        # upload assets to the release
   packages: write
+  id-token: write
 
 env:
   IMAGE_OWNER: openswath
   IMAGE_NAME: openswath
   REGISTRY: ghcr.io
+  OPENMS_TAG: 3.4.1
+  MAKE_JOBS: 8
+  PYPROPHET_VERSION: 3.0.2
+  EASYPQP_VERSION: 0.1.53
 
 jobs:
   docker:
     runs-on: ubuntu-latest
+    outputs:
+      tag_sha: ${{ steps.meta.outputs.TAG_SHA }}
+      tag_release: ${{ steps.meta.outputs.TAG_RELEASE }}
+      tag_latest: ${{ steps.meta.outputs.TAG_LATEST }}
+      joined_tags: ${{ steps.tags.outputs.JOINED_TAGS }}
     steps:
       - uses: actions/checkout@v4
 
@@ -23,12 +33,27 @@ jobs:
         id: meta
         run: |
           SHORT_SHA="${GITHUB_SHA::7}"
-          echo "TAG_SHA=sha-${SHORT_SHA}" >> $GITHUB_ENV
-          echo "TAG_RELEASE=${GITHUB_REF_NAME}" >> $GITHUB_ENV   # e.g. v0.3.0
-          # Set LATEST for non-prerelease releases
-          if [ "${{ github.event.release.prerelease }}" = "false" ]; then
-            echo "TAG_LATEST=latest" >> $GITHUB_ENV
+          {
+            echo "TAG_SHA=sha-${SHORT_SHA}"
+            echo "TAG_RELEASE=${GITHUB_REF_NAME}"     # e.g. v0.3.0
+            if [ "${{ github.event.release.prerelease }}" = "false" ]; then
+              echo "TAG_LATEST=latest"
+            else
+              echo "TAG_LATEST="
+            fi
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build tag list (avoid empty lines)
+        id: tags
+        run: |
+          T1="${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.TAG_SHA }}"
+          T2="${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.TAG_RELEASE }}"
+          TAGS="$T1,$T2"
+          if [ -n "${{ steps.meta.outputs.TAG_LATEST }}" ]; then
+            T3="${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.TAG_LATEST }}"
+            TAGS="$TAGS,$T3"
           fi
+          echo "JOINED_TAGS=$TAGS" >> "$GITHUB_OUTPUT"
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -45,14 +70,111 @@ jobs:
         with:
           context: .
           push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:${{ env.TAG_SHA }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:${{ env.TAG_RELEASE }}
-            ${{ env.TAG_LATEST && format('{0}/{1}/{2}:{3}', env.REGISTRY, env.IMAGE_OWNER, env.IMAGE_NAME, env.TAG_LATEST) || '' }}
+          # pass a CSV list to avoid empty tag entries
+          tags: ${{ steps.tags.outputs.JOINED_TAGS }}
           build-args: |
-            OPENMS_TAG=3.4.1
-            MAKE_JOBS=8
-            PYPROPHET_VERSION=3.0.2
-            EASYPQP_VERSION=0.1.53
+            OPENMS_TAG=${{ env.OPENMS_TAG }}
+            MAKE_JOBS=${{ env.MAKE_JOBS }}
+            PYPROPHET_VERSION=${{ env.PYPROPHET_VERSION }}
+            EASYPQP_VERSION=${{ env.EASYPQP_VERSION }}
             ARYCAL_URL=${{ vars.ARYCAL_URL }}
             SAGE_URL=${{ vars.SAGE_URL }}
+
+  singularity:
+    runs-on: ubuntu-latest
+    needs: docker
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_OWNER: openswath
+      IMAGE_NAME: openswath
+      TAG_RELEASE: ${{ needs.docker.outputs.tag_release }}
+      TAG_LATEST: ${{ needs.docker.outputs.tag_latest }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Apptainer
+        uses: eWaterCycle/setup-apptainer@v2
+        with:
+          apptainer-version: '1.3.4'
+
+      - name: Pull SIF for release tag
+        id: pull_release
+        run: |
+          SRC="docker://${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:${{ env.TAG_RELEASE }}"
+          SIF="openswath-${{ env.TAG_RELEASE }}.sif"
+          echo "SIF_RELEASE=${SIF}" >> "$GITHUB_ENV"
+
+          echo "Pulling ${SIF} from ${SRC}"
+          for i in {1..6}; do
+            if apptainer pull --force "${SIF}" "${SRC}"; then
+              break
+            fi
+            echo "Retry ${i}/6: waiting for image to be available..."
+            sleep 10
+          done
+          ls -lh "${SIF}"
+
+      - name: Upload SIF (release tag) as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.SIF_RELEASE }}
+          path: ${{ env.SIF_RELEASE }}
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload SIF (release tag) to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG_RELEASE }}
+          files: ${{ env.SIF_RELEASE }}
+
+      - name: Pull SIF for latest (only if non-prerelease)
+        if: ${{ env.TAG_LATEST != '' }}
+        run: |
+          SRC="docker://${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}:${{ env.TAG_LATEST }}"
+          SIF="openswath-${{ env.TAG_LATEST }}.sif"
+          echo "SIF_LATEST=${SIF}" >> "$GITHUB_ENV"
+
+          echo "Pulling ${SIF} from ${SRC}"
+          for i in {1..6}; do
+            if apptainer pull --force "${SIF}" "${SRC}"; then
+              break
+            fi
+            echo "Retry ${i}/6: waiting for image to be available..."
+            sleep 10
+          done
+          ls -lh "${SIF}"
+
+      - name: Upload SIF (latest) as workflow artifact
+        if: ${{ env.TAG_LATEST != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.SIF_LATEST }}
+          path: ${{ env.SIF_LATEST }}
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Set up ORAS
+        uses: oras-project/setup-oras@v1
+
+      - name: Login to GHCR (for ORAS)
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | oras login ghcr.io \
+            --username "${{ github.actor }}" --password-stdin
+
+      - name: Push SIF to GHCR (release tag)
+        env:
+          REPO_SIF: ghcr.io/openswath/openswath-sif
+        run: |
+          oras push "${REPO_SIF}:${{ env.TAG_RELEASE }}" \
+            --artifact-type application/vnd.apptainer.sif \
+            "${{ env.SIF_RELEASE }}:application/vnd.apptainer.sif"
+
+      - name: Push SIF to GHCR (latest)
+        if: ${{ env.TAG_LATEST != '' }}
+        env:
+          REPO_SIF: ghcr.io/openswath/openswath-sif
+        run: |
+          oras push "${REPO_SIF}:${{ env.TAG_LATEST }}" \
+            --artifact-type application/vnd.apptainer.sif \
+            "${{ env.SIF_LATEST }}:application/vnd.apptainer.sif"
