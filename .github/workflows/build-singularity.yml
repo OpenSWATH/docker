@@ -13,12 +13,14 @@ on:
         required: false
         default: ""
 
-  # Automatic trigger from the Docker workflow
+  # Optional automatic trigger from another workflow
   repository_dispatch:
     types: [singularity_build]
 
 permissions:
-  contents: write
+  contents: write   # upload to releases
+  packages: write   # push to GHCR (oras)
+  id-token: write   # future-proof if you switch to OIDC for auth
 
 jobs:
   sif:
@@ -27,6 +29,7 @@ jobs:
       REGISTRY: ghcr.io
       IMAGE_OWNER: openswath
       IMAGE_NAME: openswath
+      REPO_SIF: ghcr.io/openswath/openswath-sif
 
     steps:
       - uses: actions/checkout@v4
@@ -72,3 +75,27 @@ jobs:
         with:
           tag_name: ${{ github.event.inputs.release_tag }}
           files: ${{ env.SIF }}
+
+      # ---- Push to GHCR as OCI artifact via ORAS ----
+      - name: Set up ORAS
+        uses: oras-project/setup-oras@v1
+
+      - name: Login to GHCR (for ORAS)
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | oras login ghcr.io \
+            --username "${{ github.actor }}" --password-stdin
+
+      - name: Push SIF to GHCR (tag = source_tag)
+        run: |
+          echo "Pushing ${{ env.SIF }} to ${{ env.REPO_SIF }}:${{ env.SRC_TAG }}"
+          oras push "${{ env.REPO_SIF }}:${{ env.SRC_TAG }}" \
+            --artifact-type application/vnd.apptainer.sif \
+            "${{ env.SIF }}:application/vnd.apptainer.sif"
+
+      - name: Push SIF to GHCR (also tag = release_tag, if provided)
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag != '' }}
+        run: |
+          echo "Pushing ${{ env.SIF }} to ${{ env.REPO_SIF }}:${{ github.event.inputs.release_tag }}"
+          oras push "${{ env.REPO_SIF }}:${{ github.event.inputs.release_tag }}" \
+            --artifact-type application/vnd.apptainer.sif \
+            "${{ env.SIF }}:application/vnd.apptainer.sif"
