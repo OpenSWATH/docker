@@ -101,6 +101,8 @@ RUN python -m pip install --no-cache-dir --upgrade pip "setuptools<75" wheel \
 # pyOpenMS that matches OpenMS 3.x
 RUN python -m pip install --no-cache-dir "pyopenms>=3,<3.5"
 
+RUN python -m pip install --no-cache-dir "cython==0.29.36""
+
 # ms-numpress Python bindings
 RUN git clone --depth 1 https://github.com/ms-numpress/ms-numpress.git /tmp/ms-numpress \
  && python -m pip install --no-cache-dir /tmp/ms-numpress/src/main/python \
