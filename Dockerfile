@@ -132,7 +132,7 @@ PY
 RUN python -m pip install --no-cache-dir "easypqp==${EASYPQP_VERSION}"
 
 # diapysef CLI
-RUN python -m pip install --no-cache-dir "diapysef==${DIAPYSEF_VERSION}"
+RUN python -m pip install --no-cache-dir diapysef
 
 # Percolator built on the same base => ABI-compatible
 COPY --from=percolator-builder /opt/percolator /opt/percolator
