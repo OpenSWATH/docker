@@ -9,6 +9,7 @@ ARG OPENMS_TAG=3.4.1
 ARG MAKE_JOBS=8
 ARG PYPROPHET_VERSION=3.0.2
 ARG EASYPQP_VERSION=0.1.53
+ARG DIAPYSEF_VERSION=1.0.10
 # --- Added: URLs and optional SHA256 checksums for arycal & sage ---
 ARG ARYCAL_URL="https://github.com/singjc/arycal/releases/download/v0.1.10/arycal-.v0.1.10.-arycal-x86_64-unknown-linux-musl.tar.gz"
 ARG ARYCAL_SHA256=""
@@ -127,6 +128,9 @@ PY
 
 # EasyPQP CLI
 RUN python -m pip install --no-cache-dir "easypqp==${EASYPQP_VERSION}"
+
+# diapysef CLI
+RUN python -m pip install --no-cache-dir "diapysef==${DIAPYSEF_VERSION}"
 
 # Percolator built on the same base => ABI-compatible
 COPY --from=percolator-builder /opt/percolator /opt/percolator
