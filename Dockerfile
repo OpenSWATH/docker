@@ -95,12 +95,19 @@ RUN git config --global http.sslCAinfo /etc/ssl/certs/ca-certificates.crt
 
 # Clone OpenMS at the requested ref and build
 RUN git clone --depth 1 --branch ${OPENMS_GIT_REF} https://github.com/OpenMS/OpenMS.git /src/OpenMS
+## Remove static Boost archives so the linker selects shared Boost libraries
+# Some distributions ship both libboost_*.a and libboost_*.so; static .a files
+# that lack -fPIC cause linking failures when building shared libraries. Remove
+# the static archives in the builder stage to force use of shared .so files.
+RUN find /usr/lib /usr/lib/x86_64-linux-gnu -type f -name 'libboost_*.a' -exec rm -f {} + || true
+
 RUN mkdir -p /src/OpenMS/build && cd /src/OpenMS/build \
  && cmake -DCMAKE_BUILD_TYPE=Release \
    -DCMAKE_INSTALL_PREFIX=/opt/OpenMS \
    -DWITH_GUI=OFF -DHAS_XSERVER=OFF \
    -DBoost_USE_STATIC_LIBS=OFF \
    -DBoost_USE_STATIC_RUNTIME=OFF \
+   -DCMAKE_FIND_LIBRARY_SUFFIXES=".so;.a" \
    .. \
  && make -j${MAKE_JOBS} \
  && make install
