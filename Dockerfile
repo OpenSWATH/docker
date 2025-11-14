@@ -10,6 +10,7 @@ ARG MAKE_JOBS=8
 ARG PYPROPHET_VERSION=3.0.2
 ARG EASYPQP_VERSION=0.1.53
 ARG DIAPYSEF_VERSION=1.0.10
+ARG OPENMS_GIT_REF=develop
 # --- Added: URLs and optional SHA256 checksums for arycal & sage ---
 ARG ARYCAL_URL="https://github.com/singjc/arycal/releases/download/v0.1.10/arycal-.v0.1.10.-arycal-x86_64-unknown-linux-musl.tar.gz"
 ARG ARYCAL_SHA256=""
@@ -56,6 +57,53 @@ RUN mkdir -p build && cd build && cmake \
         ../percolator \
     && make -j${MAKE_JOBS} \
     && make install    
+
+# -----------------------------
+# Optional: build OpenMS from source (dev branch/ref)
+# This stage is opt-in; use the `runtime-built` target to produce a runtime image
+# that contains OpenMS built from the specified git ref (see build examples).
+# -----------------------------
+FROM ghcr.io/openms/openms-executables:${OPENMS_TAG} AS openms-builder
+ARG MAKE_JOBS
+ARG OPENMS_GIT_REF
+WORKDIR /src
+
+# Install common build deps for OpenMS (may need to be adjusted for specific OpenMS refs)
+# Install a newer CMake (>=3.24) from Kitware APT repo, then install dev packages OpenMS expects.
+RUN set -eux; \
+  apt-get update; \
+  apt-get install -y --no-install-recommends ca-certificates gnupg wget lsb-release software-properties-common; \
+  # Add Kitware APT repo to get a recent cmake
+  wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc | gpg --dearmor -o /usr/share/keyrings/kitware-archive-keyring.gpg; \
+  echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ $(lsb_release -cs) main" \
+    > /etc/apt/sources.list.d/kitware.list; \
+  apt-get update; \
+  apt-get install -y --no-install-recommends \
+      cmake \
+      ca-certificates git build-essential \
+      qtbase5-dev libqt5svg5-dev \
+      libboost-all-dev libeigen3-dev libtbb-dev \
+      libfftw3-dev liblapack-dev libblas-dev \
+      libxerces-c-dev libxml2-dev zlib1g-dev libbz2-dev xz-utils pkg-config \
+      libsvm-dev \
+      coinor-libcbc-dev coinor-libclp-dev coinor-libcoinutils-dev coinor-libcgl-dev coinor-libosi-dev libglpk-dev \
+  ; \
+  rm -rf /var/lib/apt/lists/*
+
+# Configure git SSL CA like other builder stages
+RUN git config --global http.sslCAinfo /etc/ssl/certs/ca-certificates.crt
+
+# Clone OpenMS at the requested ref and build
+RUN git clone --depth 1 --branch ${OPENMS_GIT_REF} https://github.com/OpenMS/OpenMS.git /src/OpenMS
+RUN mkdir -p /src/OpenMS/build && cd /src/OpenMS/build \
+ && cmake -DCMAKE_BUILD_TYPE=Release \
+   -DCMAKE_INSTALL_PREFIX=/opt/OpenMS \
+   -DWITH_GUI=OFF -DHAS_XSERVER=OFF \
+   -DBoost_USE_STATIC_LIBS=OFF \
+   -DBoost_USE_STATIC_RUNTIME=OFF \
+   .. \
+ && make -j${MAKE_JOBS} \
+ && make install
 
 # -----------------------------
 # Final runtime = OpenMS image
@@ -182,30 +230,21 @@ RUN set -eux; \
   fetch_install "$SAGE_URL"   "sage"   "$SAGE_SHA256";
 
 # --- DIAlignR (R) ---------------------------------------------------
-# Add CRAN repo matching the base Ubuntu codename (jammy in your image)
-RUN set -eux; \
-  apt-get update; \
-  apt-get install -y --no-install-recommends software-properties-common dirmngr gnupg ca-certificates curl; \
-  install -m 0755 -d /etc/apt/keyrings; \
-  curl -fsSL https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc \
-    | gpg --dearmor -o /etc/apt/keyrings/cran-archive-keyring.gpg; \
-  . /etc/os-release; CODENAME="${VERSION_CODENAME:-jammy}"; \
-  echo "deb [signed-by=/etc/apt/keyrings/cran-archive-keyring.gpg] https://cloud.r-project.org/bin/linux/ubuntu ${CODENAME}-cran40/" \
-    > /etc/apt/sources.list.d/cran-r.list; \
-  apt-get update; \
-  apt-get install -y --no-install-recommends \
+# Install R and build deps from the Ubuntu jammy repos (avoid external CRAN apt key issues
+# during container builds). This installs r-base/r-base-dev and the development libraries
+# needed to build DIAlignR.
+RUN apt-get update && apt-get install -y --no-install-recommends \
     r-base r-base-dev \
     libcurl4-openssl-dev libssl-dev libxml2-dev \
     libnetcdf-dev libglpk-dev libbz2-dev zlib1g-dev \
-    build-essential \
-    make g++ gfortran; \
-  rm -rf /var/lib/apt/lists/*
+    build-essential make g++ gfortran \
+  && rm -rf /var/lib/apt/lists/*
 
-# Install DIAlignR + friends (no devtools)
-RUN R -e "if(!requireNamespace('BiocManager', quietly=TRUE)) install.packages('BiocManager', repos='https://cloud.r-project.org')" \
+# Install DIAlignR + friends (no devtools) using the default CRAN mirror from within R
+RUN R -e "options(repos = c(CRAN = 'https://cloud.r-project.org')); if(!requireNamespace('BiocManager', quietly=TRUE)) install.packages('BiocManager')" \
  && R -e "BiocManager::install('DIAlignR', ask=FALSE)" \
  && R -e "BiocManager::install('BiocParallel', ask=FALSE)" \
- && R -e "install.packages('remotes', repos='https://cloud.r-project.org')" \
+ && R -e "install.packages('remotes')" \
  && R -e "remotes::install_github('omegahat/Rcompression', dependencies=FALSE)"
 
 # Fetch DIAlignR CLI script (pin to a commit if you want reproducibility)
@@ -224,3 +263,13 @@ RUN printf '%s\n' '#!/bin/sh' 'exec Rscript /usr/local/bin/alignTargetedRuns_cli
 
 ENV LC_ALL=C.UTF-8 LANG=C.UTF-8
 WORKDIR /data/
+
+# -----------------------------
+# runtime-built: builds on top of the normal `runtime` target but replaces
+# /opt/OpenMS with the OpenMS built from source in the `openms-builder` stage.
+# Build with: docker build --build-arg OPENMS_GIT_REF=develop --target runtime-built -t openswath:dev .
+# -----------------------------
+FROM runtime AS runtime-built
+ARG OPENMS_GIT_REF
+COPY --from=openms-builder /opt/OpenMS /opt/OpenMS
+
