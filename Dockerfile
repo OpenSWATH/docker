@@ -11,6 +11,7 @@ ARG PYPROPHET_VERSION=3.0.2
 ARG EASYPQP_VERSION=0.1.53
 ARG DIAPYSEF_VERSION=1.0.10
 ARG OPENMS_GIT_REF=develop
+ARG CMAKE_VERSION=3.27.6
 # --- Added: URLs and optional SHA256 checksums for arycal & sage ---
 ARG ARYCAL_URL="https://github.com/singjc/arycal/releases/download/v0.1.10/arycal-.v0.1.10.-arycal-x86_64-unknown-linux-musl.tar.gz"
 ARG ARYCAL_SHA256=""
@@ -66,20 +67,22 @@ RUN mkdir -p build && cd build && cmake \
 FROM ghcr.io/openms/openms-executables:${OPENMS_TAG} AS openms-builder
 ARG MAKE_JOBS
 ARG OPENMS_GIT_REF
+ARG CMAKE_VERSION
+ENV CMAKE_VERSION=${CMAKE_VERSION}
 WORKDIR /src
 
 # Install common build deps for OpenMS (may need to be adjusted for specific OpenMS refs)
 # Install a newer CMake (>=3.24) from Kitware APT repo, then install dev packages OpenMS expects.
 RUN set -eux; \
   apt-get update; \
-  apt-get install -y --no-install-recommends ca-certificates gnupg wget lsb-release software-properties-common; \
-  # Add Kitware APT repo to get a recent cmake
-  wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc | gpg --dearmor -o /usr/share/keyrings/kitware-archive-keyring.gpg; \
-  echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ $(lsb_release -cs) main" \
-    > /etc/apt/sources.list.d/kitware.list; \
-  apt-get update; \
+  apt-get install -y --no-install-recommends ca-certificates gnupg wget lsb-release software-properties-common curl; \
+  # Install a recent CMake binary (avoid apt.kitware network issues)
+  CMAKE_TARBALL="cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz"; \
+  CMAKE_URL="https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/${CMAKE_TARBALL}"; \
+  curl -fsSL -o /tmp/${CMAKE_TARBALL} "${CMAKE_URL}"; \
+  tar --strip-components=1 -C /usr/local -xzf /tmp/${CMAKE_TARBALL}; \
+  rm -f /tmp/${CMAKE_TARBALL}; \
   apt-get install -y --no-install-recommends \
-  cmake \
   ca-certificates git build-essential \
   qtbase5-dev libqt5svg5-dev \
   libboost-all-dev libeigen3-dev libtbb-dev \
