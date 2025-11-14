@@ -79,10 +79,12 @@ RUN set -eux; \
     > /etc/apt/sources.list.d/kitware.list; \
   apt-get update; \
   apt-get install -y --no-install-recommends \
-      cmake \
-      ca-certificates git build-essential \
-      qtbase5-dev libqt5svg5-dev \
-      libboost-all-dev libeigen3-dev libtbb-dev \
+  cmake \
+  ca-certificates git build-essential \
+  qtbase5-dev libqt5svg5-dev \
+  libboost-all-dev libeigen3-dev libtbb-dev \
+  # Explicit Boost dev packages (ensure shared .so variants are available)
+  libboost-random-dev libboost-regex-dev libboost-iostreams-dev libboost-date-time-dev libboost-math-dev \
       libfftw3-dev liblapack-dev libblas-dev \
       libxerces-c-dev libxml2-dev zlib1g-dev libbz2-dev xz-utils pkg-config \
       libsvm-dev \
@@ -105,8 +107,9 @@ RUN mkdir -p /src/OpenMS/build && cd /src/OpenMS/build \
  && cmake -DCMAKE_BUILD_TYPE=Release \
    -DCMAKE_INSTALL_PREFIX=/opt/OpenMS \
    -DWITH_GUI=OFF -DHAS_XSERVER=OFF \
-   -DBoost_USE_STATIC_LIBS=OFF \
-   -DBoost_USE_STATIC_RUNTIME=OFF \
+  -DBoost_USE_STATIC_LIBS=OFF \
+  -DBoost_USE_STATIC_RUNTIME=OFF \
+  -DBOOST_USE_STATIC=OFF \
    -DCMAKE_FIND_LIBRARY_SUFFIXES=".so;.a" \
    .. \
  && make -j${MAKE_JOBS} \
