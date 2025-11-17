@@ -10,6 +10,9 @@
 #
 # Optional: Build Sage from source (to get unreleased features):
 #   docker build --build-arg USE_SAGE_SOURCE=true --build-arg SAGE_GIT_REF=master -t openswath/openswath:latest .
+#
+# Optional: Build easypqp from source (to get unreleased features):
+#   docker build --build-arg USE_EASYPQP_SOURCE=true --build-arg EASYPQP_GIT_REF=master -t openswath/openswath:latest .
 
 ARG OPENMS_TAG=3.4.1
 ARG MAKE_JOBS=8
@@ -20,6 +23,8 @@ ARG OPENMS_GIT_REF=develop
 ARG CMAKE_VERSION=3.27.6
 ARG SAGE_GIT_REF=master
 ARG USE_SAGE_SOURCE=false
+ARG EASYPQP_GIT_REF=master
+ARG USE_EASYPQP_SOURCE=false
 # --- Added: URLs and optional SHA256 checksums for arycal & sage ---
 # ARG ARYCAL_URL="https://github.com/singjc/arycal/releases/download/v0.1.10/arycal-.v0.1.10.-arycal-x86_64-unknown-linux-musl.tar.gz"
 ARG ARYCAL_URL="https://github.com/singjc/arycal/releases/download/v0.2.1/arycal-v0.2.1-x86_64-linux-musl.zip"
@@ -154,6 +159,33 @@ RUN cd /src/sage \
  && chmod +x /opt/sage/bin/sage
 
 # -----------------------------
+# Optional: build easypqp from source (master/dev branch)
+# This stage is opt-in; the runtime stage will use this when USE_EASYPQP_SOURCE=true
+# Build with: docker build --build-arg USE_EASYPQP_SOURCE=true --build-arg EASYPQP_GIT_REF=master -t openswath:dev .
+# -----------------------------
+FROM ghcr.io/openms/openms-executables:${OPENMS_TAG} AS easypqp-builder
+ARG EASYPQP_GIT_REF
+WORKDIR /src
+
+# Install Python and build dependencies for easypqp
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates git \
+      python3 python3-venv python3-pip python3-dev \
+      build-essential \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN git config --global http.sslCAinfo /etc/ssl/certs/ca-certificates.crt
+
+# Clone easypqp at the requested ref
+RUN git clone --depth 1 --branch ${EASYPQP_GIT_REF} https://github.com/grosenberger/easypqp.git /src/easypqp
+
+# Create a virtual environment and install easypqp
+RUN python3 -m venv /opt/easypqp-venv \
+ && . /opt/easypqp-venv/bin/activate \
+ && pip install --no-cache-dir --upgrade pip setuptools wheel \
+ && pip install --no-cache-dir /src/easypqp
+
+# -----------------------------
 # Final runtime = OpenMS image
 # -----------------------------
 FROM ghcr.io/openms/openms-executables:${OPENMS_TAG} AS runtime
@@ -168,6 +200,7 @@ ARG ARYCAL_SHA256
 ARG SAGE_URL
 ARG SAGE_SHA256
 ARG USE_SAGE_SOURCE
+ARG USE_EASYPQP_SOURCE
 
 # (optional) make them visible at runtime inside the container
 ENV PYPROPHET_VERSION="${PYPROPHET_VERSION}" \
@@ -225,8 +258,19 @@ con.execute("INSTALL 'sqlite_scanner'")
 con.execute("LOAD 'sqlite_scanner'")
 PY
 
-# EasyPQP CLI
-RUN python -m pip install --no-cache-dir "easypqp==${EASYPQP_VERSION}"
+# EasyPQP CLI: either built from source (USE_EASYPQP_SOURCE=true) or installed from PyPI
+RUN if [ "$USE_EASYPQP_SOURCE" = "true" ]; then \
+      echo "Using easypqp built from source (easypqp-builder stage)"; \
+    else \
+      echo "Installing easypqp from PyPI"; \
+      python -m pip install --no-cache-dir "easypqp==${EASYPQP_VERSION}"; \
+    fi
+
+# Copy easypqp from builder stage if USE_EASYPQP_SOURCE=true
+COPY --from=easypqp-builder /opt/easypqp-venv /opt/easypqp-venv 2>/dev/null || true
+RUN if [ "$USE_EASYPQP_SOURCE" = "true" ] && [ -d /opt/easypqp-venv ]; then \
+      ln -sf /opt/easypqp-venv/bin/easypqp /opt/venv/bin/easypqp; \
+    fi
 
 # diapysef CLI
 RUN python -m pip install --no-cache-dir diapysef
