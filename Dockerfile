@@ -137,7 +137,7 @@ RUN mkdir -p /src/OpenMS/build && cd /src/OpenMS/build \
 # This stage is opt-in; the runtime stage will copy from here when USE_SAGE_SOURCE=true
 # Build with: docker build --build-arg USE_SAGE_SOURCE=true --build-arg SAGE_GIT_REF=master -t openswath:dev .
 # -----------------------------
-FROM rust:1.75-slim AS sage-builder
+FROM rust:slim AS sage-builder
 ARG SAGE_GIT_REF
 WORKDIR /src
 
@@ -259,6 +259,7 @@ con.execute("LOAD 'sqlite_scanner'")
 PY
 
 # EasyPQP CLI: either built from source (USE_EASYPQP_SOURCE=true) or installed from PyPI
+# Note: We handle the copy inline with RUN to avoid COPY command issues with conditionals
 RUN if [ "$USE_EASYPQP_SOURCE" = "true" ]; then \
       echo "Using easypqp built from source (easypqp-builder stage)"; \
     else \
@@ -266,11 +267,14 @@ RUN if [ "$USE_EASYPQP_SOURCE" = "true" ]; then \
       python -m pip install --no-cache-dir "easypqp==${EASYPQP_VERSION}"; \
     fi
 
-# Copy easypqp from builder stage if USE_EASYPQP_SOURCE=true
-COPY --from=easypqp-builder /opt/easypqp-venv /opt/easypqp-venv 2>/dev/null || true
-RUN if [ "$USE_EASYPQP_SOURCE" = "true" ] && [ -d /opt/easypqp-venv ]; then \
+# Copy easypqp venv from builder stage (always copy, only use if flag set)
+COPY --from=easypqp-builder /opt/easypqp-venv /tmp/easypqp-venv-staged
+RUN if [ "$USE_EASYPQP_SOURCE" = "true" ]; then \
+      mkdir -p /opt/easypqp-venv; \
+      cp -r /tmp/easypqp-venv-staged/* /opt/easypqp-venv/; \
       ln -sf /opt/easypqp-venv/bin/easypqp /opt/venv/bin/easypqp; \
-    fi
+    fi; \
+    rm -rf /tmp/easypqp-venv-staged
 
 # diapysef CLI
 RUN python -m pip install --no-cache-dir diapysef
@@ -355,13 +359,15 @@ RUN set -eux; \
     fetch_install "$SAGE_URL" "sage" "$SAGE_SHA256"; \
   fi
 
-# Copy sage from builder stage if USE_SAGE_SOURCE=true
-COPY --from=sage-builder /opt/sage/bin/sage /tmp/sage-built 2>/dev/null || true
-RUN if [ "$USE_SAGE_SOURCE" = "true" ] && [ -f /tmp/sage-built ]; then \
+# Copy sage from builder stage (always copy, only use if flag set)
+COPY --from=sage-builder /opt/sage/bin/sage /tmp/sage-built
+RUN if [ "$USE_SAGE_SOURCE" = "true" ]; then \
       mkdir -p /opt/sage/bin; \
       mv /tmp/sage-built /opt/sage/bin/sage; \
       chmod +x /opt/sage/bin/sage; \
       ln -sf /opt/sage/bin/sage /usr/local/bin/sage; \
+    else \
+      rm -f /tmp/sage-built; \
     fi
 
 # --- DIAlignR (R) ---------------------------------------------------
