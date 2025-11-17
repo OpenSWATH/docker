@@ -3,16 +3,16 @@
 #   --build-arg MAKE_JOBS=8 \
 #   --build-arg ARYCAL_URL=https://github.com/singjc/arycal/releases/download/v0.1.10/arycal-.v0.1.10.-arycal-x86_64-unknown-linux-musl.tar.gz \
 #   --build-arg SAGE_URL=https://github.com/lazear/sage/releases/download/v0.14.7/sage-v0.14.7-x86_64-unknown-linux-musl.tar.gz \
-#   -t openswath/openswath:0.3.0 .
+#   -t ghcr.io/openswath/openswath:0.3.0 .
 #
 # Optional: Build OpenMS from source (dev branch):
-#   docker build --build-arg OPENMS_GIT_REF=develop --target runtime-built -t openswath/openswath:dev .
+#   docker build --build-arg OPENMS_GIT_REF=develop --target runtime-built -t ghcr.io/openswath/openswath:dev .
 #
 # Optional: Build Sage from source (to get unreleased features):
-#   docker build --build-arg USE_SAGE_SOURCE=true --build-arg SAGE_GIT_REF=master -t openswath/openswath:latest .
+#   docker build --build-arg USE_SAGE_SOURCE=true --build-arg SAGE_GIT_REF=master -t ghcr.io/openswath/openswath:latest .
 #
 # Optional: Build easypqp from source (to get unreleased features):
-#   docker build --build-arg USE_EASYPQP_SOURCE=true --build-arg EASYPQP_GIT_REF=master -t openswath/openswath:latest .
+#   docker build --build-arg USE_EASYPQP_SOURCE=true --build-arg EASYPQP_GIT_REF=master -t ghcr.io/openswath/openswath:latest .
 
 ARG OPENMS_TAG=3.4.1
 ARG MAKE_JOBS=8
@@ -136,15 +136,20 @@ RUN mkdir -p /src/OpenMS/build && cd /src/OpenMS/build \
 # Optional: build Sage from source (master/dev branch)
 # This stage is opt-in; the runtime stage will copy from here when USE_SAGE_SOURCE=true
 # Build with: docker build --build-arg USE_SAGE_SOURCE=true --build-arg SAGE_GIT_REF=master -t openswath:dev .
+# Note: Uses the same base as runtime to ensure glibc compatibility
 # -----------------------------
-FROM rust:slim AS sage-builder
+FROM ghcr.io/openms/openms-executables:${OPENMS_TAG} AS sage-builder
 ARG SAGE_GIT_REF
 WORKDIR /src
 
-# Install build dependencies for Sage (Rust project)
+# Install Rust toolchain and build dependencies for Sage
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates git \
+      ca-certificates git curl build-essential \
   && rm -rf /var/lib/apt/lists/*
+
+# Install Rust using rustup (ensures we get a recent version)
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
+ENV PATH="/root/.cargo/bin:${PATH}"
 
 RUN git config --global http.sslCAinfo /etc/ssl/certs/ca-certificates.crt
 
