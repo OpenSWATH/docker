@@ -4,6 +4,12 @@
 #   --build-arg ARYCAL_URL=https://github.com/singjc/arycal/releases/download/v0.1.10/arycal-.v0.1.10.-arycal-x86_64-unknown-linux-musl.tar.gz \
 #   --build-arg SAGE_URL=https://github.com/lazear/sage/releases/download/v0.14.7/sage-v0.14.7-x86_64-unknown-linux-musl.tar.gz \
 #   -t openswath/openswath:0.3.0 .
+#
+# Optional: Build OpenMS from source (dev branch):
+#   docker build --build-arg OPENMS_GIT_REF=develop --target runtime-built -t openswath/openswath:dev .
+#
+# Optional: Build Sage from source (to get unreleased features):
+#   docker build --build-arg USE_SAGE_SOURCE=true --build-arg SAGE_GIT_REF=master -t openswath/openswath:latest .
 
 ARG OPENMS_TAG=3.4.1
 ARG MAKE_JOBS=8
@@ -12,6 +18,8 @@ ARG EASYPQP_VERSION=0.1.53
 ARG DIAPYSEF_VERSION=1.0.10
 ARG OPENMS_GIT_REF=develop
 ARG CMAKE_VERSION=3.27.6
+ARG SAGE_GIT_REF=master
+ARG USE_SAGE_SOURCE=false
 # --- Added: URLs and optional SHA256 checksums for arycal & sage ---
 # ARG ARYCAL_URL="https://github.com/singjc/arycal/releases/download/v0.1.10/arycal-.v0.1.10.-arycal-x86_64-unknown-linux-musl.tar.gz"
 ARG ARYCAL_URL="https://github.com/singjc/arycal/releases/download/v0.2.1/arycal-v0.2.1-x86_64-linux-musl.zip"
@@ -120,6 +128,32 @@ RUN mkdir -p /src/OpenMS/build && cd /src/OpenMS/build \
  && make install
 
 # -----------------------------
+# Optional: build Sage from source (master/dev branch)
+# This stage is opt-in; the runtime stage will copy from here when USE_SAGE_SOURCE=true
+# Build with: docker build --build-arg USE_SAGE_SOURCE=true --build-arg SAGE_GIT_REF=master -t openswath:dev .
+# -----------------------------
+FROM rust:1.75-slim AS sage-builder
+ARG SAGE_GIT_REF
+WORKDIR /src
+
+# Install build dependencies for Sage (Rust project)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates git \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN git config --global http.sslCAinfo /etc/ssl/certs/ca-certificates.crt
+
+# Clone Sage at the requested ref and build
+RUN git clone --depth 1 --branch ${SAGE_GIT_REF} https://github.com/lazear/sage.git /src/sage
+
+# Build Sage in release mode
+RUN cd /src/sage \
+ && cargo build --release \
+ && mkdir -p /opt/sage/bin \
+ && cp target/release/sage /opt/sage/bin/sage \
+ && chmod +x /opt/sage/bin/sage
+
+# -----------------------------
 # Final runtime = OpenMS image
 # -----------------------------
 FROM ghcr.io/openms/openms-executables:${OPENMS_TAG} AS runtime
@@ -133,6 +167,7 @@ ARG ARYCAL_URL
 ARG ARYCAL_SHA256
 ARG SAGE_URL
 ARG SAGE_SHA256
+ARG USE_SAGE_SOURCE
 
 # (optional) make them visible at runtime inside the container
 ENV PYPROPHET_VERSION="${PYPROPHET_VERSION}" \
@@ -211,7 +246,7 @@ RUN ln -sf /opt/venv/bin/feature_alignment.py /usr/local/bin/feature_alignment.p
  && ln -sf /opt/venv/bin/easypqp              /usr/local/bin/easypqp              || true
 
 # -----------------------------
-# arycal & sage (precompiled)
+# arycal (precompiled binary download)
 # -----------------------------
 # Helper: download + verify + unpack/put into /usr/local/bin
 # Works with .tar.gz, .tar.xz, .zip, or plain binary URLs
@@ -240,8 +275,50 @@ RUN set -eux; \
     ln -sf "$bin" "/usr/local/bin/${name}"; \
     rm -f "$tmp"; \
   }; \
-  fetch_install "$ARYCAL_URL" "arycal" "$ARYCAL_SHA256"; \
-  fetch_install "$SAGE_URL"   "sage"   "$SAGE_SHA256";
+  fetch_install "$ARYCAL_URL" "arycal" "$ARYCAL_SHA256";
+
+# -----------------------------
+# sage: either built from source (USE_SAGE_SOURCE=true) or precompiled binary download
+# -----------------------------
+# Conditional copy from sage-builder if USE_SAGE_SOURCE=true, otherwise download prebuilt
+RUN set -eux; \
+  if [ "$USE_SAGE_SOURCE" = "true" ]; then \
+    echo "Using Sage built from source (sage-builder stage)"; \
+  else \
+    echo "Downloading prebuilt Sage binary"; \
+    fetch_install () { \
+      url="$1"; name="$2"; sha="$3"; \
+      test -n "$url" || { echo "skip $name (no URL)"; return 0; }; \
+      tmp=/tmp/${name}.asset; \
+      curl -L --fail -o "$tmp" "$url"; \
+      if [ -n "$sha" ]; then echo "${sha}  ${tmp}" | sha256sum -c -; fi; \
+      mkdir -p /opt/${name}/bin; \
+      case "$url" in \
+        *.tar.gz|*.tgz) tar -xzf "$tmp" -C /opt/${name}/bin ;; \
+        *.tar.xz)       tar -xJf "$tmp" -C /opt/${name}/bin ;; \
+        *.zip)          unzip -q "$tmp" -d /opt/${name}/bin ;; \
+        *)              install -m 0755 "$tmp" "/opt/${name}/bin/${name}" ;; \
+      esac; \
+      bin="$(find /opt/${name}/bin -maxdepth 2 -type f -perm -u+x \( -name "${name}" -o -name "${name}*" \) | head -n1 || true)"; \
+      if [ -z "$bin" ]; then \
+        find /opt/${name}/bin -type f -exec chmod +x {} \; ; \
+        bin="$(find /opt/${name}/bin -maxdepth 2 -type f -perm -u+x | head -n1 || true)"; \
+      fi; \
+      test -n "$bin"; \
+      ln -sf "$bin" "/usr/local/bin/${name}"; \
+      rm -f "$tmp"; \
+    }; \
+    fetch_install "$SAGE_URL" "sage" "$SAGE_SHA256"; \
+  fi
+
+# Copy sage from builder stage if USE_SAGE_SOURCE=true
+COPY --from=sage-builder /opt/sage/bin/sage /tmp/sage-built 2>/dev/null || true
+RUN if [ "$USE_SAGE_SOURCE" = "true" ] && [ -f /tmp/sage-built ]; then \
+      mkdir -p /opt/sage/bin; \
+      mv /tmp/sage-built /opt/sage/bin/sage; \
+      chmod +x /opt/sage/bin/sage; \
+      ln -sf /opt/sage/bin/sage /usr/local/bin/sage; \
+    fi
 
 # --- DIAlignR (R) ---------------------------------------------------
 # Install R and build deps from the Ubuntu jammy repos (avoid external CRAN apt key issues
