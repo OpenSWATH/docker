@@ -13,7 +13,8 @@ ARG DIAPYSEF_VERSION=1.0.10
 ARG OPENMS_GIT_REF=develop
 ARG CMAKE_VERSION=3.27.6
 # --- Added: URLs and optional SHA256 checksums for arycal & sage ---
-ARG ARYCAL_URL="https://github.com/singjc/arycal/releases/download/v0.1.10/arycal-.v0.1.10.-arycal-x86_64-unknown-linux-musl.tar.gz"
+# ARG ARYCAL_URL="https://github.com/singjc/arycal/releases/download/v0.1.10/arycal-.v0.1.10.-arycal-x86_64-unknown-linux-musl.tar.gz"
+ARG ARYCAL_URL="https://github.com/singjc/arycal/releases/download/v0.2.1/arycal-v0.2.1-x86_64-linux-musl.zip"
 ARG ARYCAL_SHA256=""
 ARG SAGE_URL="https://github.com/lazear/sage/releases/download/v0.14.7/sage-v0.14.7-x86_64-unknown-linux-musl.tar.gz"
 ARG SAGE_SHA256=""
@@ -229,7 +230,7 @@ RUN set -eux; \
       *)              install -m 0755 "$tmp" "/opt/${name}/bin/${name}" ;; \
     esac; \
     # find the binary (first matching file named exactly or prefix)
-    bin="$(find /opt/${name}/bin -maxdepth 2 -type f -perm -u+x \( -name ${name} -o -name '${name}*' \) | head -n1 || true)"; \
+    bin="$(find /opt/${name}/bin -maxdepth 2 -type f -perm -u+x \( -name "${name}" -o -name "${name}*" \) | head -n1 || true)"; \
     if [ -z "$bin" ]; then \
       # fallback: mark all as executable and pick first file
       find /opt/${name}/bin -type f -exec chmod +x {} \; ; \
