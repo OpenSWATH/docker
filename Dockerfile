@@ -18,8 +18,8 @@
 
 ARG OPENMS_TAG=3.4.1
 ARG MAKE_JOBS=8
-ARG PYPROPHET_VERSION=3.0.2
-ARG EASYPQP_VERSION=0.1.53
+ARG PYPROPHET_VERSION=3.0.5
+ARG EASYPQP_VERSION=0.1.54
 ARG DIAPYSEF_VERSION=1.0.10
 ARG OPENMS_GIT_REF=develop
 ARG CMAKE_VERSION=3.27.6
@@ -186,12 +186,13 @@ RUN git config --global http.sslCAinfo /etc/ssl/certs/ca-certificates.crt
 
 # Clone easypqp at the requested ref
 RUN git clone --depth 1 --branch ${EASYPQP_GIT_REF} https://github.com/grosenberger/easypqp.git /src/easypqp
+# RUN git clone --depth 1 --branch ${EASYPQP_GIT_REF} https://github.com/singjc/easypqp.git /src/easypqp
 
 # Create a virtual environment and install easypqp
 RUN python3 -m venv /opt/easypqp-venv \
  && . /opt/easypqp-venv/bin/activate \
  && pip install --no-cache-dir --upgrade pip setuptools wheel \
- && pip install --no-cache-dir /src/easypqp
+ && pip install --no-cache-dir /src/easypqp[all]
 
 # -----------------------------
 # Optional: build FDRBench from source and include it in the main dev image
@@ -381,7 +382,7 @@ RUN if [ "$USE_EASYPQP_SOURCE" = "true" ]; then \
       echo "Using easypqp built from source (easypqp-builder stage)"; \
     else \
       echo "Installing easypqp from PyPI"; \
-      python -m pip install --no-cache-dir "easypqp==${EASYPQP_VERSION}"; \
+      python -m pip install --no-cache-dir "easypqp==${EASYPQP_VERSION}[all]"; \
     fi
 
 # Copy easypqp venv from builder stage (always copy, only use if flag set)
